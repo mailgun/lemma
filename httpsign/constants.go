@@ -1,4 +1,4 @@
-package lemma
+package httpsign
 
 const MaxSkewSec = 20                     // 20 sec
 const CacheTimeout = 30                   // 30 sec

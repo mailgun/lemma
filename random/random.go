@@ -1,4 +1,4 @@
-package lemma
+package random
 
 import (
 	"crypto/rand"

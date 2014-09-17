@@ -1,9 +1,8 @@
 /*
-Package auth provides tools for signing and authenticating HTTP requests between
+Package httpsign provides tools for signing and authenticating HTTP requests between
 web services. See README.md for more details.
 */
-
-package lemma
+package httpsign
 
 import (
 	"bytes"
@@ -15,6 +14,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/mailgun/lemma/random"
 	"github.com/mailgun/timetools"
 )
 
@@ -41,7 +41,7 @@ type Config struct {
 type Service struct {
 	config         *Config
 	nonceCache     *NonceCache
-	randomProvider RandomProvider
+	randomProvider random.RandomProvider
 	timeProvider   timetools.TimeProvider
 	secretKey      []byte
 }
@@ -52,13 +52,13 @@ func New(config *Config) (*Service, error) {
 	return NewWithProviders(
 		config,
 		&timetools.RealTime{},
-		&CSPRNG{},
+		&random.CSPRNG{},
 	)
 }
 
 // Returns a new Service. Provides control over time and random providers.
 func NewWithProviders(config *Config, timeProvider timetools.TimeProvider,
-	randomProvider RandomProvider) (*Service, error) {
+	randomProvider random.RandomProvider) (*Service, error) {
 
 	// config is required!
 	if config == nil {
@@ -160,63 +160,63 @@ func (s *Service) SignRequestWithKey(r *http.Request, secretKey []byte) error {
 }
 
 // Authenticates HTTP request to ensure it was sent by an authorized sender.
-func (s *Service) AuthenticateRequest(r *http.Request) (bool, error) {
+func (s *Service) AuthenticateRequest(r *http.Request) error {
 	if s.secretKey == nil {
-		return false, fmt.Errorf("service not loaded with key.")
+		return fmt.Errorf("service not loaded with key.")
 	}
 	return s.AuthenticateRequestWithKey(r, s.secretKey)
 }
 
 // Authenticates HTTP request to ensure it was sent by an authorized sender.
 // Checks message signature with the passed in key, not the one initialized with.
-func (s *Service) AuthenticateRequestWithKey(r *http.Request, secretKey []byte) (bool, error) {
+func (s *Service) AuthenticateRequestWithKey(r *http.Request, secretKey []byte) error {
 	// extract parameters
 	signature := r.Header.Get(s.config.SignatureHeaderName)
 	if signature == "" {
-		return false, fmt.Errorf("header not found: %v", s.config.SignatureHeaderName)
+		return fmt.Errorf("header not found: %v", s.config.SignatureHeaderName)
 	}
 	nonce := r.Header.Get(s.config.NonceHeaderName)
 	if nonce == "" {
-		return false, fmt.Errorf("header not found: %v", s.config.NonceHeaderName)
+		return fmt.Errorf("header not found: %v", s.config.NonceHeaderName)
 	}
 	timestamp := r.Header.Get(s.config.TimestampHeaderName)
 	if timestamp == "" {
-		return false, fmt.Errorf("header not found: %v", s.config.TimestampHeaderName)
+		return fmt.Errorf("header not found: %v", s.config.TimestampHeaderName)
 	}
 
 	// extract request body bytes
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return false, err
+		return err
 	}
 	r.Body = ioutil.NopCloser(bytes.NewReader(bodyBytes))
 
 	// extract any headers if requested
 	headerValues, err := extractHeaderValues(r, s.config.HeadersToSign)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	// check the hmac
 	isValid, err := checkMAC(secretKey, s.config.SignVerbAndURI, r.Method, r.URL.RequestURI(),
 		timestamp, nonce, bodyBytes, headerValues, signature)
 	if !isValid {
-		return false, err
+		return err
 	}
 
 	// check timestamp
 	isValid, err = s.checkTimestamp(timestamp)
 	if !isValid {
-		return false, err
+		return err
 	}
 
 	// check to see if we have seen nonce before
 	inCache := s.nonceCache.InCache(nonce)
 	if inCache {
-		return false, fmt.Errorf("nonce already in cache: %v", nonce)
+		return fmt.Errorf("nonce already in cache: %v", nonce)
 	}
 
-	return true, nil
+	return nil
 }
 
 func (s *Service) checkTimestamp(timestampHeader string) (bool, error) {
