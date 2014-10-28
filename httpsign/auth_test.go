@@ -1,4 +1,4 @@
-package lemma
+package httpsign
 
 import (
 	"fmt"
@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mailgun/lemma/random"
 	"github.com/mailgun/timetools"
 )
 
@@ -49,16 +50,16 @@ func TestSignRequest(t *testing.T) {
 				NonceCacheTimeout:  CacheTimeout,
 			},
 			&timetools.FreezedTime{time.Unix(1330837567, 0)},
-			&FakeRNG{},
+			&random.FakeRNG{},
 		)
 		if err != nil {
-			t.Error("[%v] Got unexpected error from NewWithHeadersAndProviders:", i, err)
+			t.Errorf("[%v] Got unexpected error from NewWithHeadersAndProviders: %v", i, err)
 		}
 
 		body := strings.NewReader(tt.inRequestBody)
 		request, err := http.NewRequest(tt.inHttpVerb, tt.inRequestUri, body)
 		if err != nil {
-			t.Error("[%v] Got unexpected error from http.NewRequest:", i, err)
+			t.Errorf("[%v] Got unexpected error from http.NewRequest: %v", i, err)
 		}
 		if len(tt.inHeadersToSign) > 0 {
 			for k, v := range tt.inHeadersToSign {
@@ -69,7 +70,7 @@ func TestSignRequest(t *testing.T) {
 		// test signing a request
 		err = s.SignRequest(request)
 		if err != nil {
-			t.Error("[%v] Got unexpected error from SignRequest:", i, err)
+			t.Errorf("[%v] Got unexpected error from SignRequest: %v", i, err)
 		}
 
 		// check nonce
@@ -105,20 +106,20 @@ func TestAuthenticateRequest(t *testing.T) {
 			NonceCacheTimeout:  CacheTimeout,
 		},
 		&timetools.FreezedTime{time.Unix(1330837567, 0)},
-		&FakeRNG{},
+		&random.FakeRNG{},
 	)
 	if err != nil {
-		t.Error("Got unexpected error from NewWithHeadersAndProviders:", err)
+		t.Errorf("Got unexpected error from NewWithHeadersAndProviders: %v", err)
 	}
 
 	// http server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// test
-		isValid, err := s.AuthenticateRequest(r)
+		err := s.AuthenticateRequest(r)
 
 		// check
-		if !isValid {
-			t.Error("AuthenticateRequest failed to authenticate a correctly signed request. It returned this error:", err)
+		if err != nil {
+			t.Errorf("AuthenticateRequest failed to authenticate a correctly signed request. It returned this error: %v", err)
 		}
 
 		fmt.Fprintln(w, "Hello, client")
@@ -129,20 +130,20 @@ func TestAuthenticateRequest(t *testing.T) {
 	body := strings.NewReader(`{"hello": "world"}`)
 	request, err := http.NewRequest("POST", ts.URL, body)
 	if err != nil {
-		t.Error("Got unexpected error from http.NewRequest:", err)
+		t.Errorf("Got unexpected error from http.NewRequest: %v", err)
 	}
 
 	// sign request
 	err = s.SignRequest(request)
 	if err != nil {
-		t.Error("Got unexpected error from SignRequest:", err)
+		t.Errorf("Got unexpected error from SignRequest: %v", err)
 	}
 
 	// submit request
 	client := &http.Client{}
 	_, err = client.Do(request)
 	if err != nil {
-		t.Error("Got unexpected error from client.Do:", err)
+		t.Errorf("Got unexpected error from client.Do: %v", err)
 	}
 }
 
@@ -157,20 +158,20 @@ func TestAuthenticateRequestWithHeaders(t *testing.T) {
 			NonceCacheTimeout:  CacheTimeout,
 		},
 		&timetools.FreezedTime{time.Unix(1330837567, 0)},
-		&FakeRNG{},
+		&random.FakeRNG{},
 	)
 	if err != nil {
-		t.Error("Got unexpected error from NewWithHeadersAndProviders:", err)
+		t.Errorf("Got unexpected error from NewWithHeadersAndProviders: %v", err)
 	}
 
 	// http server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// test
-		isValid, err := s.AuthenticateRequest(r)
+		err := s.AuthenticateRequest(r)
 
 		// check
-		if !isValid {
-			t.Error("AuthenticateRequest failed to authenticate a correctly signed request. It returned this error:", err)
+		if err != nil {
+			t.Errorf("AuthenticateRequest failed to authenticate a correctly signed request. It returned this error: %v", err)
 		}
 
 		fmt.Fprintln(w, "Hello, client")
@@ -181,21 +182,21 @@ func TestAuthenticateRequestWithHeaders(t *testing.T) {
 	body := strings.NewReader(`{"hello": "world"}`)
 	request, err := http.NewRequest("POST", ts.URL, body)
 	if err != nil {
-		t.Error("Got unexpected error from http.NewRequest:", err)
+		t.Errorf("Got unexpected error from http.NewRequest: %v", err)
 	}
 	request.Header.Set("X-Mailgun-Custom-Header", "bar")
 
 	// sign request
 	err = s.SignRequest(request)
 	if err != nil {
-		t.Error("Got unexpected error from SignRequest:", err)
+		t.Errorf("Got unexpected error from SignRequest: %v", err)
 	}
 
 	// submit request
 	client := &http.Client{}
 	_, err = client.Do(request)
 	if err != nil {
-		t.Error("Got unexpected error from client.Do:", err)
+		t.Errorf("Got unexpected error from client.Do: %v", err)
 	}
 }
 
@@ -210,20 +211,20 @@ func TestAuthenticateRequestWithKey(t *testing.T) {
 			NonceCacheTimeout:  CacheTimeout,
 		},
 		&timetools.FreezedTime{time.Unix(1330837567, 0)},
-		&FakeRNG{},
+		&random.FakeRNG{},
 	)
 	if err != nil {
-		t.Error("Got unexpected error from NewWithHeadersAndProviders:", err)
+		t.Errorf("Got unexpected error from NewWithHeadersAndProviders: %v", err)
 	}
 
 	// http server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// test
-		isValid, err := s.AuthenticateRequestWithKey(r, []byte("abc"))
+		err := s.AuthenticateRequestWithKey(r, []byte("abc"))
 
 		// check
-		if !isValid {
-			t.Error("AuthenticateRequest failed to authenticate a correctly signed request. It returned this error:", err)
+		if err != nil {
+			t.Errorf("AuthenticateRequest failed to authenticate a correctly signed request. It returned this error: %v", err)
 		}
 
 		fmt.Fprintln(w, "Hello, client")
@@ -234,20 +235,20 @@ func TestAuthenticateRequestWithKey(t *testing.T) {
 	body := strings.NewReader(`{"hello": "world"}`)
 	request, err := http.NewRequest("POST", ts.URL, body)
 	if err != nil {
-		t.Error("Got unexpected error from http.NewRequest:", err)
+		t.Errorf("Got unexpected error from http.NewRequest: %v", err)
 	}
 
 	// sign request
 	err = s.SignRequestWithKey(request, []byte("abc"))
 	if err != nil {
-		t.Error("Got unexpected error from SignRequest:", err)
+		t.Errorf("Got unexpected error from SignRequest: %v", err)
 	}
 
 	// submit request
 	client := &http.Client{}
 	_, err = client.Do(request)
 	if err != nil {
-		t.Error("Got unexpected error from client.Do:", err)
+		t.Errorf("Got unexpected error from client.Do: %v", err)
 	}
 }
 
@@ -262,20 +263,20 @@ func TestAuthenticateRequestWithVerbAndUri(t *testing.T) {
 			NonceCacheTimeout:  CacheTimeout,
 		},
 		&timetools.FreezedTime{time.Unix(1330837567, 0)},
-		&FakeRNG{},
+		&random.FakeRNG{},
 	)
 	if err != nil {
-		t.Error("Got unexpected error from NewWithHeadersAndProviders:", err)
+		t.Errorf("Got unexpected error from NewWithHeadersAndProviders: %v", err)
 	}
 
 	// http server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// test
-		isValid, err := s.AuthenticateRequestWithKey(r, []byte("abc"))
+		err := s.AuthenticateRequestWithKey(r, []byte("abc"))
 
 		// check
-		if !isValid {
-			t.Error("AuthenticateRequest failed to authenticate a correctly signed request. It returned this error:", err)
+		if err != nil {
+			t.Errorf("AuthenticateRequest failed to authenticate a correctly signed request. It returned this error: %v", err)
 		}
 
 		fmt.Fprintln(w, "Hello, client")
@@ -286,20 +287,20 @@ func TestAuthenticateRequestWithVerbAndUri(t *testing.T) {
 	body := strings.NewReader(`{"hello": "world"}`)
 	request, err := http.NewRequest("POST", ts.URL, body)
 	if err != nil {
-		t.Error("Got unexpected error from http.NewRequest:", err)
+		t.Errorf("Got unexpected error from http.NewRequest: %v", err)
 	}
 
 	// sign request
 	err = s.SignRequestWithKey(request, []byte("abc"))
 	if err != nil {
-		t.Error("Got unexpected error from SignRequest:", err)
+		t.Errorf("Got unexpected error from SignRequest: %v", err)
 	}
 
 	// submit request
 	client := &http.Client{}
 	_, err = client.Do(request)
 	if err != nil {
-		t.Error("Got unexpected error from client.Do:", err)
+		t.Errorf("Got unexpected error from client.Do: %v", err)
 	}
 }
 
@@ -314,19 +315,19 @@ func TestAuthenticateRequestForged(t *testing.T) {
 			NonceCacheTimeout:  CacheTimeout,
 		},
 		&timetools.FreezedTime{time.Unix(1330837567, 0)},
-		&FakeRNG{},
+		&random.FakeRNG{},
 	)
 	if err != nil {
-		t.Error("Got unexpected error from NewWithHeadersAndProviders:", err)
+		t.Errorf("Got unexpected error from NewWithHeadersAndProviders: %v", err)
 	}
 
 	// http server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// test
-		isValid, err := s.AuthenticateRequest(r)
+		err := s.AuthenticateRequest(r)
 
 		// check
-		if isValid {
+		if err == nil {
 			t.Errorf("AuthenticateRequest failed to authenticate a correctly signed request. It returned this error:", err)
 		}
 
@@ -350,7 +351,7 @@ func TestAuthenticateRequestForged(t *testing.T) {
 	client := &http.Client{}
 	_, err = client.Do(request)
 	if err != nil {
-		t.Error("Got unexpected error from client.Do:", err)
+		t.Errorf("Got unexpected error from client.Do: %v", err)
 	}
 }
 
@@ -365,19 +366,19 @@ func TestAuthenticateRequestMissingHeaders(t *testing.T) {
 			NonceCacheTimeout:  CacheTimeout,
 		},
 		&timetools.FreezedTime{time.Unix(1330837567, 0)},
-		&FakeRNG{},
+		&random.FakeRNG{},
 	)
 	if err != nil {
-		t.Error("Got unexpected error from NewWithHeadersAndProviders:", err)
+		t.Errorf("Got unexpected error from NewWithHeadersAndProviders: %v", err)
 	}
 
 	// http server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// test
-		isValid, err := s.AuthenticateRequest(r)
+		err := s.AuthenticateRequest(r)
 
 		// check
-		if isValid {
+		if err == nil {
 			t.Errorf("AuthenticateRequest failed to authenticate a correctly signed request. It returned this error:", err)
 		}
 
@@ -389,7 +390,7 @@ func TestAuthenticateRequestMissingHeaders(t *testing.T) {
 	body := strings.NewReader(`{"hello": "world"}`)
 	request, err := http.NewRequest("POST", ts.URL, body)
 	if err != nil {
-		t.Error("Got unexpected error from http.NewRequest:", err)
+		t.Errorf("Got unexpected error from http.NewRequest: %v", err)
 	}
 
 	// try and forget signing the request
@@ -400,7 +401,7 @@ func TestAuthenticateRequestMissingHeaders(t *testing.T) {
 	client := &http.Client{}
 	_, err = client.Do(request)
 	if err != nil {
-		t.Error("Got unexpected error from client.Do:", err)
+		t.Errorf("Got unexpected error from client.Do: %v", err)
 	}
 }
 
@@ -415,10 +416,10 @@ func TestCheckTimestamp(t *testing.T) {
 			NonceCacheTimeout:  30,
 		},
 		&timetools.FreezedTime{time.Unix(1330837567, 0)},
-		&FakeRNG{},
+		&random.FakeRNG{},
 	)
 	if err != nil {
-		t.Error("Got unexpected error from NewWithHeadersAndProviders:", err)
+		t.Errorf("Got unexpected error from NewWithHeadersAndProviders: %v", err)
 	}
 
 	// test goldilocks (perfect) timestamp
@@ -426,7 +427,7 @@ func TestCheckTimestamp(t *testing.T) {
 	timestamp0 := strconv.FormatInt(time0.Unix(), 10)
 	isValid0, err := s.checkTimestamp(timestamp0)
 	if !isValid0 {
-		t.Error("Got unexpected error from checkTimestamp:", err)
+		t.Errorf("Got unexpected error from checkTimestamp: %v", err)
 	}
 
 	// test old timestamp
@@ -434,7 +435,7 @@ func TestCheckTimestamp(t *testing.T) {
 	timestamp1 := strconv.FormatInt(time1.Unix(), 10)
 	isValid1, err := s.checkTimestamp(timestamp1)
 	if isValid1 {
-		t.Error("Got unexpected error from checkTimestamp:", err)
+		t.Errorf("Got unexpected error from checkTimestamp: %v", err)
 	}
 
 	// test timestamp from the future
@@ -442,6 +443,6 @@ func TestCheckTimestamp(t *testing.T) {
 	timestamp2 := strconv.FormatInt(time2.Unix(), 10)
 	isValid2, err := s.checkTimestamp(timestamp2)
 	if isValid2 {
-		t.Error("Got unexpected error from checkTimestamp:", err)
+		t.Errorf("Got unexpected error from checkTimestamp: %v", err)
 	}
 }
