@@ -8,15 +8,24 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"strings"
 
 	"code.google.com/p/go.crypto/nacl/secretbox"
 	"github.com/mailgun/lemma/random"
+	"github.com/mailgun/metrics"
 )
 
-// Config is used to configure a secret service. It contains the keypath to the
-// secret key as well as the version of the secret service that will be used.
+// Config is used to configure a secret service. It contains either the key path
+// or key bytes to use.
 type Config struct {
-	Keypath string
+	KeyPath  string
+	KeyBytes *[SecretKeyLength]byte
+
+	EmitStats    bool   // toggle emitting metrics or not
+	StatsdHost   string // hostname of statsd server
+	StatsdPort   int    // port of statsd server
+	StatsdPrefix string // prefix to prepend to metrics
 }
 
 // SealedBytes contains the ciphertext and nonce for a sealed message.
@@ -27,24 +36,58 @@ type SealedBytes struct {
 
 // A Service can be used to seal/open (encrypt/decrypt and authenticate) messages.
 type Service struct {
-	secretKey *[SecretKeyLength]byte
+	secretKey     *[SecretKeyLength]byte
+	metricsClient metrics.Client
 }
 
 // New returns a new Service. Config can not be nil.
 func New(config *Config) (*Service, error) {
-	// read in the key from disk
-	keyBytes, err := readKeyFromDisk(config.Keypath)
-	if err != nil {
-		return nil, err
+
+	var err error
+	var keyBytes *[SecretKeyLength]byte
+	var metricsClient metrics.Client
+
+	// read in key from keypath or if not given, try getting them from key bytes.
+	if config.KeyPath != "" {
+		keyBytes, err = readKeyFromDisk(config.KeyPath)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		if config.KeyBytes == nil {
+			return nil, fmt.Errorf("No key bytes provided.")
+		}
+		keyBytes = config.KeyBytes
 	}
 
-	return NewWithKeyBytes(keyBytes)
-}
+	// setup metrics service
+	if config.EmitStats {
+		// get hostname of box
+		hostname, err := os.Hostname()
+		if err != nil {
+			return nil, fmt.Errorf("failed to obtain hostname: %v", err)
+		}
 
-// NewWithKeyBytes returns a new service with the key bytes passed in.
-func NewWithKeyBytes(keyBytes *[SecretKeyLength]byte) (*Service, error) {
+		// build lemma prefix
+		prefix := "lemma." + strings.Replace(hostname, ".", "_", -1)
+		if config.StatsdPrefix != "" {
+			prefix += "." + config.StatsdPrefix
+		}
+
+		// build metrics client
+		hostport := fmt.Sprintf("%v:%v", config.StatsdHost, config.StatsdPort)
+		metricsClient, err = metrics.NewWithOptions(hostport, prefix, metrics.Options{UseBuffering: true})
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// if you don't want to emit stats, use the nop client
+		metricsClient = metrics.NewNop()
+	}
+
 	return &Service{
-		secretKey: keyBytes,
+		secretKey:     keyBytes,
+		metricsClient: metricsClient,
 	}, nil
 }
 
@@ -83,7 +126,17 @@ func (s *Service) Open(e *SealedBytes) ([]byte, error) {
 }
 
 // OpenWithKey is the same as Open, but a different key can be passed in.
-func (s *Service) OpenWithKey(e *SealedBytes, secretKey *[SecretKeyLength]byte) ([]byte, error) {
+func (s *Service) OpenWithKey(e *SealedBytes, secretKey *[SecretKeyLength]byte) (byt []byte, err error) {
+	// once function is complete, check if we are returning err or not.
+	// if we are, return emit a failure metric, if not a success metric.
+	defer func() {
+		if err == nil {
+			s.metricsClient.Inc("success", 1, 1)
+		} else {
+			s.metricsClient.Inc("failure", 1, 1)
+		}
+	}()
+
 	// check that we either initialized with a key or one was passed in
 	if secretKey == nil {
 		return nil, fmt.Errorf("secret key is nil")
