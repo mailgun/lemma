@@ -12,9 +12,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 
 	"github.com/mailgun/lemma/random"
+	"github.com/mailgun/metrics"
 	"github.com/mailgun/timetools"
 )
 
@@ -31,6 +34,11 @@ type Config struct {
 	NonceCacheCapacity int // capacity of the nonce cache
 	NonceCacheTimeout  int // nonce cache timeout
 
+	EmitStats    bool   // toggle emitting metrics or not
+	StatsdHost   string // hostname of statsd server
+	StatsdPort   int    // port of statsd server
+	StatsdPrefix string // prefix to prepend to metrics
+
 	NonceHeaderName            string // default: X-Mailgun-Nonce
 	TimestampHeaderName        string // default: X-Mailgun-Timestamp
 	SignatureHeaderName        string // default: X-Mailgun-Signature
@@ -44,6 +52,7 @@ type Service struct {
 	randomProvider random.RandomProvider
 	timeProvider   timetools.TimeProvider
 	secretKey      []byte
+	metricsClient  metrics.Client
 }
 
 // Return a new Service. Config can not be nil. If you need control over
@@ -85,6 +94,29 @@ func NewWithProviders(config *Config, timeProvider timetools.TimeProvider,
 		config.SignatureVersionHeaderName = XMailgunSignatureVersion
 	}
 
+	// setup metrics service
+	metricsClient := metrics.NewNop()
+	if config.EmitStats {
+		// get hostname of box
+		hostname, err := os.Hostname()
+		if err != nil {
+			return nil, fmt.Errorf("failed to obtain hostname: %v", err)
+		}
+
+		// build lemma prefix
+		prefix := "lemma." + strings.Replace(hostname, ".", "_", -1)
+		if config.StatsdPrefix != "" {
+			prefix += "." + config.StatsdPrefix
+		}
+
+		// build metrics client
+		hostport := fmt.Sprintf("%v:%v", config.StatsdHost, config.StatsdPort)
+		metricsClient, err = metrics.NewWithOptions(hostport, prefix, metrics.Options{UseBuffering: true})
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// read key from disk, if no key is read that's okay it might be passed in
 	keyBytes, err := readKeyFromDisk(config.Keypath)
 
@@ -101,6 +133,7 @@ func NewWithProviders(config *Config, timeProvider timetools.TimeProvider,
 		secretKey:      keyBytes,
 		timeProvider:   timeProvider,
 		randomProvider: randomProvider,
+		metricsClient:  metricsClient,
 	}, nil
 }
 
@@ -169,7 +202,16 @@ func (s *Service) AuthenticateRequest(r *http.Request) error {
 
 // Authenticates HTTP request to ensure it was sent by an authorized sender.
 // Checks message signature with the passed in key, not the one initialized with.
-func (s *Service) AuthenticateRequestWithKey(r *http.Request, secretKey []byte) error {
+func (s *Service) AuthenticateRequestWithKey(r *http.Request, secretKey []byte) (err error) {
+	// Emit a success or failure metric on return.
+	defer func() {
+		if err == nil {
+			s.metricsClient.Inc("success", 1, 1)
+		} else {
+			s.metricsClient.Inc("failure", 1, 1)
+		}
+	}()
+
 	// extract parameters
 	signature := r.Header.Get(s.config.SignatureHeaderName)
 	if signature == "" {
