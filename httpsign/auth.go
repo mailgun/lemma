@@ -276,7 +276,7 @@ func (s *Service) checkTimestamp(timestampHeader string) (bool, error) {
 			now, s.config.TimestampHeaderName, timestamp, timestamp-now)
 	}
 
-	// if the timestamp is older than ttl + skew, it's invalid
+	// if the timestamp is older than ttl - skew, it's invalid
 	if timestamp <= now-int64(s.nonceCache.cacheTTL-MaxSkewSec) {
 		return false, fmt.Errorf("timestamp header too old; now: %v; %v: %v; difference: %v",
 			now, s.config.TimestampHeaderName, timestamp, now-timestamp)
