@@ -27,19 +27,19 @@ outputSize = 16 // 128 bit = 16 byte
 csprng := random.CSPRNG{}
 
 // hex-encoded random bytes
-randomHexDigest := csprng.HexDigest(outputSize)
-fmt.Printf("Random Hex Digest: %v\n", randomHexDigest)
+randomHexDigest, err := csprng.HexDigest(outputSize)
+fmt.Printf("Random Hex Digest: %v, err: %v\n", randomHexDigest, err)
 
 // raw bytes
-randomBytes := csprng.Bytes(outputSize)
-fmt.Printf("Random Bytes: %# x\n", randomBytes)
+randomBytes, err := csprng.Bytes(outputSize)
+fmt.Printf("Random Bytes: %# x, err: %v\n", randomBytes, err)
 ```
 
 Will print out something like the following to the console:
 
 ```
-Random Hex Digest: 45eb93fdf5afe149ee3e61412c97e9bc
-Random Bytes: 0xee 0x52 0x5b 0x50 0xb9 0x10 0x3c 0x14 0x75 0x9a 0xa5 0xb9 0xa3 0xc4 0x6e 0x50
+Random Hex Digest: 45eb93fdf5afe149ee3e61412c97e9bc, err: <nil>
+Random Bytes: 0xee 0x52 0x5b 0x50 0xb9 0x10 0x3c 0x14 0x75 0x9a 0xa5 0xb9 0xa3 0xc4 0x6e 0x50, err: <nil>
 ```
 
 _Generate a fake n-bit random number_

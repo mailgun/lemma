@@ -9,6 +9,9 @@ Package secret provides tools for encrypting and decrypting authenticated messag
 Like all lemma packages, metrics are built in and can be emitted to check
 for anomalous behavior.
 
+[NaCl](http://nacl.cr.yp.to/) is the underlying secret-key authenticated encryption
+library used. NaCl uses Salsa20 and Poly1305 as its cipher and MAC respectively.
+
 **Examples**
 
 _Key generation and use_

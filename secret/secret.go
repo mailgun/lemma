@@ -49,7 +49,7 @@ func New(config *Config) (*Service, error) {
 
 	// read in key from keypath or if not given, try getting them from key bytes.
 	if config.KeyPath != "" {
-		keyBytes, err = readKeyFromDisk(config.KeyPath)
+		keyBytes, err = ReadKeyFromDisk(config.KeyPath)
 		if err != nil {
 			return nil, err
 		}
@@ -91,18 +91,40 @@ func New(config *Config) (*Service, error) {
 	}, nil
 }
 
-// Seal takes plaintext and returns encrypted and authenticated ciphertext.
-func (s *Service) Seal(value []byte) (*SealedBytes, error) {
-	return s.SealWithKey(value, s.secretKey)
-}
-
-// SealWithKey does the same thing as Seal, but a different key can be passed in.
-func (s *Service) SealWithKey(value []byte, secretKey *[SecretKeyLength]byte) (*SealedBytes, error) {
-	// check that we either initialized with a key or one was passed in
+// Seal takes plaintext and a key and returns encrypted and authenticated ciphertext.
+// Allows passing in a key and useful for one off sealing purposes, otherwise
+// create a secret.Service to seal multiple times.
+func Seal(value []byte, secretKey *[SecretKeyLength]byte) (*SealedBytes, error) {
 	if secretKey == nil {
 		return nil, fmt.Errorf("secret key is nil")
 	}
 
+	secretService, err := New(&Config{KeyBytes: secretKey})
+	if err != nil {
+		return nil, err
+	}
+
+	return secretService.Seal(value)
+}
+
+// Open authenticates the ciphertext and if valid, decrypts and returns plaintext.
+// Allows passing in a key and useful for one off opening purposes, otherwise
+// create a secret.Service to open multiple times.
+func Open(e *SealedBytes, secretKey *[SecretKeyLength]byte) ([]byte, error) {
+	if secretKey == nil {
+		return nil, fmt.Errorf("secret key is nil")
+	}
+
+	secretService, err := New(&Config{KeyBytes: secretKey})
+	if err != nil {
+		return nil, err
+	}
+
+	return secretService.Open(e)
+}
+
+// Seal takes plaintext and returns encrypted and authenticated ciphertext.
+func (s *Service) Seal(value []byte) (*SealedBytes, error) {
 	// generate nonce
 	nonce, err := generateNonce()
 	if err != nil {
@@ -111,7 +133,7 @@ func (s *Service) SealWithKey(value []byte, secretKey *[SecretKeyLength]byte) (*
 
 	// use nacl secret box to encrypt plaintext
 	var encrypted []byte
-	encrypted = secretbox.Seal(encrypted, value, nonce, secretKey)
+	encrypted = secretbox.Seal(encrypted, value, nonce, s.secretKey)
 
 	// return sealed ciphertext
 	return &SealedBytes{
@@ -121,12 +143,7 @@ func (s *Service) SealWithKey(value []byte, secretKey *[SecretKeyLength]byte) (*
 }
 
 // Open authenticates the ciphertext and if valid, decrypts and returns plaintext.
-func (s *Service) Open(e *SealedBytes) ([]byte, error) {
-	return s.OpenWithKey(e, s.secretKey)
-}
-
-// OpenWithKey is the same as Open, but a different key can be passed in.
-func (s *Service) OpenWithKey(e *SealedBytes, secretKey *[SecretKeyLength]byte) (byt []byte, err error) {
+func (s *Service) Open(e *SealedBytes) (byt []byte, err error) {
 	// once function is complete, check if we are returning err or not.
 	// if we are, return emit a failure metric, if not a success metric.
 	defer func() {
@@ -137,11 +154,6 @@ func (s *Service) OpenWithKey(e *SealedBytes, secretKey *[SecretKeyLength]byte) 
 		}
 	}()
 
-	// check that we either initialized with a key or one was passed in
-	if secretKey == nil {
-		return nil, fmt.Errorf("secret key is nil")
-	}
-
 	// convert nonce to an array
 	nonce, err := nonceSliceToArray(e.Nonce)
 	if err != nil {
@@ -150,7 +162,7 @@ func (s *Service) OpenWithKey(e *SealedBytes, secretKey *[SecretKeyLength]byte) 
 
 	// decrypt
 	var decrypted []byte
-	decrypted, ok := secretbox.Open(decrypted, e.Ciphertext, nonce, secretKey)
+	decrypted, ok := secretbox.Open(decrypted, e.Ciphertext, nonce, s.secretKey)
 	if !ok {
 		return nil, fmt.Errorf("unable to decrypt message")
 	}
@@ -158,7 +170,7 @@ func (s *Service) OpenWithKey(e *SealedBytes, secretKey *[SecretKeyLength]byte) 
 	return decrypted, nil
 }
 
-func readKeyFromDisk(keypath string) (*[SecretKeyLength]byte, error) {
+func ReadKeyFromDisk(keypath string) (*[SecretKeyLength]byte, error) {
 	// load key from disk
 	keyBytes, err := ioutil.ReadFile(keypath)
 	if err != nil {
@@ -172,7 +184,7 @@ func readKeyFromDisk(keypath string) (*[SecretKeyLength]byte, error) {
 	return EncodedStringToKey(string(keyBytes))
 }
 
-func keySliceToArray(bytes []byte) (*[SecretKeyLength]byte, error) {
+func KeySliceToArray(bytes []byte) (*[SecretKeyLength]byte, error) {
 	// check that the lengths match
 	if len(bytes) != SecretKeyLength {
 		return nil, fmt.Errorf("wrong key length: %v", len(bytes))

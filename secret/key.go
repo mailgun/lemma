@@ -13,7 +13,7 @@ func NewKey() (*[SecretKeyLength]byte, error) {
 		return nil, fmt.Errorf("unable to generate random: %v", err)
 	}
 
-	return keySliceToArray(bytes)
+	return KeySliceToArray(bytes)
 }
 
 // EncodedStringToKey converts a base64-encoded string into key bytes.
@@ -25,7 +25,7 @@ func EncodedStringToKey(encodedKey string) (*[SecretKeyLength]byte, error) {
 	}
 
 	// convert to array and return
-	return keySliceToArray(keySlice)
+	return KeySliceToArray(keySlice)
 }
 
 // KeyToEncodedString converts bytes into a base64-encoded string

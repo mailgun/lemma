@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/mailgun/httpsign"
+	"github.com/mailgun/lemma/httpsign"
 )
 
 var status = flag.Bool("status", false, "Print the HTTP status code.")
