@@ -5,4 +5,4 @@ Simple command-line utility for making authenticated http requests. Currently on
 
 Usage:
 
-    authcurl path/to/scret.key http://some.service.com
+    authcurl path/to/secret.key http://some.service.com
