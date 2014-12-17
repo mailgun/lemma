@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,19 +10,26 @@ import (
 	"github.com/mailgun/httpsign"
 )
 
+var status = flag.Bool("status", false, "Print the HTTP status code.")
+
 func main() {
-	if len(os.Args) != 3 {
+	flag.Parse()
+	if flag.NArg() != 2 {
 		fmt.Fprintf(os.Stderr, "Usage: %s <keypath> <URL>\n", os.Args[0])
+		flag.PrintDefaults()
 		os.Exit(1)
 	}
 
+	_, err := os.Stat(flag.Arg(0))
+	checkErr(err)
+
 	svc, err := httpsign.New(&httpsign.Config{
-		Keypath:        os.Args[1],
+		Keypath:        flag.Arg(0),
 		SignVerbAndURI: true,
 	})
 	checkErr(err)
 
-	req, err := http.NewRequest("GET", os.Args[2], nil)
+	req, err := http.NewRequest("GET", flag.Arg(1), nil)
 	checkErr(err)
 
 	err = svc.SignRequest(req)
@@ -31,6 +39,9 @@ func main() {
 	checkErr(err)
 
 	defer resp.Body.Close()
+	if *status {
+		fmt.Println(resp.Status)
+	}
 	io.Copy(os.Stdout, resp.Body)
 }
 
