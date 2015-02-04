@@ -332,7 +332,7 @@ func checkMAC(secretKey []byte, signVerbAndUri bool, httpVerb string, httpResour
 	// constant time compare
 	isEqual := hmac.Equal(expectedMAC, computedMAC)
 	if !isEqual {
-		return false, fmt.Errorf("signature header value %v does not match computed value %v", expectedMAC, computedMAC)
+		return false, fmt.Errorf("signature header value %v does not match computed value", expectedMAC)
 	}
 
 	return true, nil
