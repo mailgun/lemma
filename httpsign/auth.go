@@ -9,6 +9,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -332,7 +333,7 @@ func checkMAC(secretKey []byte, signVerbAndUri bool, httpVerb string, httpResour
 	// constant time compare
 	isEqual := hmac.Equal(expectedMAC, computedMAC)
 	if !isEqual {
-		return false, fmt.Errorf("signature header value %v does not match computed value %v", expectedMAC, computedMAC)
+		return false, errors.New("invalid signature")
 	}
 
 	return true, nil
