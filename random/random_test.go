@@ -50,3 +50,25 @@ func TestFakeRNG(t *testing.T) {
 		t.Errorf("&FRNG{}.HexDigest(4) = %v; want %v", g1, w)
 	}
 }
+
+func TestSeededRNG(t *testing.T) {
+	rng := SeededRNG{}
+
+	// Test Bytes().
+	g0, err := rng.Bytes(8)
+	if err != nil {
+		t.Error("Got unexpected error from SeededRNG.Bytes:", err)
+	}
+	if w := []byte{0xfa, 0x12, 0xf9, 0x2a, 0xfb, 0xe0, 0x0f, 0x85}; !bytes.Equal(g0, w) {
+		t.Errorf("&SeededRNG{Seed: 0}.Bytes(8) = %v, want %v", g0, w)
+	}
+
+	// Reseed.
+	rng = SeededRNG{}
+
+	// Test HexDigest().
+	g1, err := rng.HexDigest(4)
+	if w := "fa12f92a"; g1 != w {
+		t.Errorf("&SeededRNG{Seed: 0}.Bytes(4) = %v, want %v", g1, w)
+	}
+}
