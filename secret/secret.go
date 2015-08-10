@@ -16,6 +16,27 @@ import (
 	"github.com/mailgun/metrics"
 )
 
+// Secret is an interface for encrypting/decrypting and authenticating messages.
+type Secret interface {
+	// Seal takes a plaintext message and returns an encrypted and authenticated ciphertext.
+	Seal([]byte) (Sealed, error)
+
+	// SealWithKey is the same as Seal but a different key can be passed in.
+	SealWithKey([]byte, *[SecretKeyLength]byte) (Sealed, error)
+
+	// Open authenticates the ciphertext and, if it is valid, decrypts and returns plaintext.
+	Open(Sealed) ([]byte, error)
+
+	// OpenWithKey is the same as Open but a different key can be passed in.
+	OpenWithKey(Sealed, *[SecretKeyLength]byte) ([]byte, error)
+}
+
+// Sealed respresents an encrypted and authenticated message.
+type Sealed interface {
+	GetCiphertext() []byte
+	GetNonce() []byte
+}
+
 // Config is used to configure a secret service. It contains either the key path
 // or key bytes to use.
 type Config struct {
@@ -34,6 +55,14 @@ type SealedBytes struct {
 	Nonce      []byte
 }
 
+func (s *SealedBytes) GetCiphertext() []byte {
+	return s.Ciphertext
+}
+
+func (s *SealedBytes) GetNonce() []byte {
+	return s.Nonce
+}
+
 // A Service can be used to seal/open (encrypt/decrypt and authenticate) messages.
 type Service struct {
 	secretKey     *[SecretKeyLength]byte
@@ -41,7 +70,7 @@ type Service struct {
 }
 
 // New returns a new Service. Config can not be nil.
-func New(config *Config) (*Service, error) {
+func New(config *Config) (Secret, error) {
 
 	var err error
 	var keyBytes *[SecretKeyLength]byte
@@ -92,12 +121,12 @@ func New(config *Config) (*Service, error) {
 }
 
 // Seal takes plaintext and returns encrypted and authenticated ciphertext.
-func (s *Service) Seal(value []byte) (*SealedBytes, error) {
+func (s *Service) Seal(value []byte) (Sealed, error) {
 	return s.SealWithKey(value, s.secretKey)
 }
 
 // SealWithKey does the same thing as Seal, but a different key can be passed in.
-func (s *Service) SealWithKey(value []byte, secretKey *[SecretKeyLength]byte) (*SealedBytes, error) {
+func (s *Service) SealWithKey(value []byte, secretKey *[SecretKeyLength]byte) (Sealed, error) {
 	// check that we either initialized with a key or one was passed in
 	if secretKey == nil {
 		return nil, fmt.Errorf("secret key is nil")
@@ -121,12 +150,12 @@ func (s *Service) SealWithKey(value []byte, secretKey *[SecretKeyLength]byte) (*
 }
 
 // Open authenticates the ciphertext and if valid, decrypts and returns plaintext.
-func (s *Service) Open(e *SealedBytes) ([]byte, error) {
+func (s *Service) Open(e Sealed) ([]byte, error) {
 	return s.OpenWithKey(e, s.secretKey)
 }
 
 // OpenWithKey is the same as Open, but a different key can be passed in.
-func (s *Service) OpenWithKey(e *SealedBytes, secretKey *[SecretKeyLength]byte) (byt []byte, err error) {
+func (s *Service) OpenWithKey(e Sealed, secretKey *[SecretKeyLength]byte) (byt []byte, err error) {
 	// once function is complete, check if we are returning err or not.
 	// if we are, return emit a failure metric, if not a success metric.
 	defer func() {
@@ -143,14 +172,14 @@ func (s *Service) OpenWithKey(e *SealedBytes, secretKey *[SecretKeyLength]byte) 
 	}
 
 	// convert nonce to an array
-	nonce, err := nonceSliceToArray(e.Nonce)
+	nonce, err := nonceSliceToArray(e.GetNonce())
 	if err != nil {
 		return nil, err
 	}
 
 	// decrypt
 	var decrypted []byte
-	decrypted, ok := secretbox.Open(decrypted, e.Ciphertext, nonce, secretKey)
+	decrypted, ok := secretbox.Open(decrypted, e.GetCiphertext(), nonce, secretKey)
 	if !ok {
 		return nil, fmt.Errorf("unable to decrypt message")
 	}
