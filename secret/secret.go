@@ -33,8 +33,8 @@ type Secret interface {
 
 // Sealed respresents an encrypted and authenticated message.
 type Sealed interface {
-	GetCiphertext() []byte
-	GetNonce() []byte
+	Ciphertext() []byte
+	Nonce() []byte
 }
 
 // Config is used to configure a secret service. It contains either the key path
@@ -55,11 +55,11 @@ type SealedBytes struct {
 	Nonce      []byte
 }
 
-func (s *SealedBytes) GetCiphertext() []byte {
+func (s *SealedBytes) Ciphertext() []byte {
 	return s.Ciphertext
 }
 
-func (s *SealedBytes) GetNonce() []byte {
+func (s *SealedBytes) Nonce() []byte {
 	return s.Nonce
 }
 
@@ -172,14 +172,14 @@ func (s *Service) OpenWithKey(e Sealed, secretKey *[SecretKeyLength]byte) (byt [
 	}
 
 	// convert nonce to an array
-	nonce, err := nonceSliceToArray(e.GetNonce())
+	nonce, err := nonceSliceToArray(e.Nonce())
 	if err != nil {
 		return nil, err
 	}
 
 	// decrypt
 	var decrypted []byte
-	decrypted, ok := secretbox.Open(decrypted, e.GetCiphertext(), nonce, secretKey)
+	decrypted, ok := secretbox.Open(decrypted, e.Ciphertext(), nonce, secretKey)
 	if !ok {
 		return nil, fmt.Errorf("unable to decrypt message")
 	}
