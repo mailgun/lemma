@@ -6,6 +6,7 @@ package secret
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -15,6 +16,24 @@ import (
 	"github.com/mailgun/lemma/random"
 	"github.com/mailgun/metrics"
 )
+
+// SecretSevice is an interface for encrypting/decrypting and authenticating messages.
+type SecretService interface {
+	// Seal takes a plaintext message and returns an encrypted and authenticated ciphertext.
+	Seal([]byte) (SealedData, error)
+
+	// Open authenticates the ciphertext and, if it is valid, decrypts and returns plaintext.
+	Open(SealedData) ([]byte, error)
+}
+
+// SealedData respresents an encrypted and authenticated message.
+type SealedData interface {
+	CiphertextBytes() []byte
+	CiphertextHex() string
+
+	NonceBytes() []byte
+	NonceHex() string
+}
 
 // Config is used to configure a secret service. It contains either the key path
 // or key bytes to use.
@@ -34,6 +53,22 @@ type SealedBytes struct {
 	Nonce      []byte
 }
 
+func (s *SealedBytes) CiphertextBytes() []byte {
+	return s.Ciphertext
+}
+
+func (s *SealedBytes) CiphertextHex() string {
+	return base64.URLEncoding.EncodeToString(s.Ciphertext)
+}
+
+func (s *SealedBytes) NonceBytes() []byte {
+	return s.Nonce
+}
+
+func (s *SealedBytes) NonceHex() string {
+	return base64.URLEncoding.EncodeToString(s.Nonce)
+}
+
 // A Service can be used to seal/open (encrypt/decrypt and authenticate) messages.
 type Service struct {
 	secretKey     *[SecretKeyLength]byte
@@ -41,7 +76,7 @@ type Service struct {
 }
 
 // New returns a new Service. Config can not be nil.
-func New(config *Config) (*Service, error) {
+func New(config *Config) (SecretService, error) {
 
 	var err error
 	var keyBytes *[SecretKeyLength]byte
@@ -94,7 +129,7 @@ func New(config *Config) (*Service, error) {
 // Seal takes plaintext and a key and returns encrypted and authenticated ciphertext.
 // Allows passing in a key and useful for one off sealing purposes, otherwise
 // create a secret.Service to seal multiple times.
-func Seal(value []byte, secretKey *[SecretKeyLength]byte) (*SealedBytes, error) {
+func Seal(value []byte, secretKey *[SecretKeyLength]byte) (SealedData, error) {
 	if secretKey == nil {
 		return nil, fmt.Errorf("secret key is nil")
 	}
@@ -110,7 +145,7 @@ func Seal(value []byte, secretKey *[SecretKeyLength]byte) (*SealedBytes, error) 
 // Open authenticates the ciphertext and if valid, decrypts and returns plaintext.
 // Allows passing in a key and useful for one off opening purposes, otherwise
 // create a secret.Service to open multiple times.
-func Open(e *SealedBytes, secretKey *[SecretKeyLength]byte) ([]byte, error) {
+func Open(e SealedData, secretKey *[SecretKeyLength]byte) ([]byte, error) {
 	if secretKey == nil {
 		return nil, fmt.Errorf("secret key is nil")
 	}
@@ -124,7 +159,7 @@ func Open(e *SealedBytes, secretKey *[SecretKeyLength]byte) ([]byte, error) {
 }
 
 // Seal takes plaintext and returns encrypted and authenticated ciphertext.
-func (s *Service) Seal(value []byte) (*SealedBytes, error) {
+func (s *Service) Seal(value []byte) (SealedData, error) {
 	// generate nonce
 	nonce, err := generateNonce()
 	if err != nil {
@@ -143,7 +178,7 @@ func (s *Service) Seal(value []byte) (*SealedBytes, error) {
 }
 
 // Open authenticates the ciphertext and if valid, decrypts and returns plaintext.
-func (s *Service) Open(e *SealedBytes) (byt []byte, err error) {
+func (s *Service) Open(e SealedData) (byt []byte, err error) {
 	// once function is complete, check if we are returning err or not.
 	// if we are, return emit a failure metric, if not a success metric.
 	defer func() {
@@ -155,14 +190,14 @@ func (s *Service) Open(e *SealedBytes) (byt []byte, err error) {
 	}()
 
 	// convert nonce to an array
-	nonce, err := nonceSliceToArray(e.Nonce)
+	nonce, err := nonceSliceToArray(e.NonceBytes())
 	if err != nil {
 		return nil, err
 	}
 
 	// decrypt
 	var decrypted []byte
-	decrypted, ok := secretbox.Open(decrypted, e.Ciphertext, nonce, s.secretKey)
+	decrypted, ok := secretbox.Open(decrypted, e.CiphertextBytes(), nonce, s.secretKey)
 	if !ok {
 		return nil, fmt.Errorf("unable to decrypt message")
 	}

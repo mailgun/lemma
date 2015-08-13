@@ -175,11 +175,11 @@ func generateKey(keypath string, salt []byte, keyiter int) (key *[secret.SecretK
 }
 
 // Encodes all data needed to decrypt message into a JSON string and writes it to disk.
-func writeCiphertext(salt []byte, keyiter int, isPass bool, sealed *secret.SealedBytes, filename string) error {
+func writeCiphertext(salt []byte, keyiter int, isPass bool, sealed secret.SealedData, filename string) error {
 	// fill in the ciphertext fields
 	ec := EncodedCiphertext{
-		CiphertextNonce: sealed.Nonce,
-		Ciphertext:      sealed.Ciphertext,
+		CiphertextNonce: sealed.NonceBytes(),
+		Ciphertext:      sealed.CiphertextBytes(),
 		CipherAlgorithm: "salsa20_poly1305",
 	}
 
