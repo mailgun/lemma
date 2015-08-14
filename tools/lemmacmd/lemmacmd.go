@@ -15,10 +15,13 @@ import (
 )
 
 type EncodedCiphertext struct {
-	KeySalt         []byte `json:"key_salt,omitempty"`
-	KeyIter         int    `json:"key_iter_count,omitempty"`
+	KeySalt      []byte `json:"key_salt,omitempty"`
+	KeyIter      int    `json:"key_iter_count,omitempty"`
+	KeyAlgorithm string `json:"key_algorithm,omitempty"`
+
 	CiphertextNonce []byte `json:"ciphertext_nonce"`
 	Ciphertext      []byte `json:"ciphertext"`
+	CipherAlgorithm string `json:"cipher_algorithm"`
 }
 
 func main() {
@@ -94,7 +97,7 @@ func encrypt(keypath string, itercount int, inputpath string, outputpath string)
 		os.Exit(255)
 	}
 
-	key, err := generateKey(keypath, salt, itercount)
+	key, isPass, err := generateKey(keypath, salt, itercount)
 	if err != nil {
 		fmt.Printf("lemmacmd: unable to generate or read in key: %v\n", err)
 		os.Exit(255)
@@ -112,7 +115,7 @@ func encrypt(keypath string, itercount int, inputpath string, outputpath string)
 		os.Exit(255)
 	}
 
-	err = writeCiphertext(salt, itercount, sealedData, outputpath)
+	err = writeCiphertext(salt, itercount, isPass, sealedData, outputpath)
 	if err != nil {
 		fmt.Printf("lemmacmd: unable to write sealed data to disk: %v\n", err)
 		os.Exit(255)
@@ -126,7 +129,7 @@ func decrypt(keypath string, inputpath string, outputpath string) {
 		os.Exit(255)
 	}
 
-	key, err := generateKey(keypath, keySalt, keyIter)
+	key, _, err := generateKey(keypath, keySalt, keyIter)
 	if err != nil {
 		fmt.Printf("lemmacmd: unable to build key: %v\n", err)
 		os.Exit(255)
@@ -146,14 +149,14 @@ func decrypt(keypath string, inputpath string, outputpath string) {
 }
 
 // Returns key from keypath or uses salt + passphrase to generate key using a KDF.
-func generateKey(keypath string, salt []byte, keyiter int) (key *[secret.SecretKeyLength]byte, err error) {
+func generateKey(keypath string, salt []byte, keyiter int) (key *[secret.SecretKeyLength]byte, isPass bool, err error) {
 	// if a keypath is given try and use it
 	if keypath != "" {
 		key, err := secret.ReadKeyFromDisk(keypath)
 		if err != nil {
-			return nil, fmt.Errorf("unable to build secret service: %v", err)
+			return nil, false, fmt.Errorf("unable to build secret service: %v", err)
 		}
-		return key, nil
+		return key, false, nil
 	}
 
 	// otherwise read in a passphrase from disk and use that, remember to reset your terminal afterwards
@@ -163,17 +166,28 @@ func generateKey(keypath string, salt []byte, keyiter int) (key *[secret.SecretK
 
 	// derive key and return it
 	keySlice := pbkdf2.Key([]byte(passphrase), salt, keyiter, 32, sha256.New)
-	return secret.KeySliceToArray(keySlice)
+	keyBytes, err := secret.KeySliceToArray(keySlice)
+	if err != nil {
+		return nil, true, err
+	}
+
+	return keyBytes, true, nil
 }
 
 // Encodes all data needed to decrypt message into a JSON string and writes it to disk.
-func writeCiphertext(salt []byte, keyiter int, sealed *secret.SealedBytes, filename string) error {
-	// salt, nonce, and ciphertext are stored base64 encoded
+func writeCiphertext(salt []byte, keyiter int, isPass bool, sealed *secret.SealedBytes, filename string) error {
+	// fill in the ciphertext fields
 	ec := EncodedCiphertext{
-		KeySalt:         salt,
-		KeyIter:         keyiter,
 		CiphertextNonce: sealed.Nonce,
 		Ciphertext:      sealed.Ciphertext,
+		CipherAlgorithm: "salsa20_poly1305",
+	}
+
+	// if we used a passphrase, also set the passphrase fields
+	if isPass == true {
+		ec.KeySalt = salt
+		ec.KeyIter = keyiter
+		ec.KeyAlgorithm = "pbkdf#2"
 	}
 
 	// marshal encoded ciphertext into a json string
