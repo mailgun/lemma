@@ -15,10 +15,10 @@ The commands are:
     decrypt     decrypt a file on disk
 
 The flags are: 
-    inputpath   path to file to be read in
-    outputpath  path to file to be written out
+    in          path to file to be read in
+    out         path to file to be written out
     keypath     path to base64-encoded 32-byte key on disk, if no path is given, a passphrase is used
-    itercount   if a passphrase is used, iteration count for PBKDF#2", the default is 524288
+    itercount   if a passphrase is used, iteration count for PBKDF#2, the default is 524288
 ```
 
 **Example**
