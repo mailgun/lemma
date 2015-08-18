@@ -2,7 +2,7 @@
 
 lemmacmd is a command-line utility that uses lemma to provide authenticated symmetric cryptography for small files on disk.
 
-Download Link: [lemmacmd](https://02ef13b3a7daa6077072-6e744c858d17d7c8cda321fc4d669273.ssl.cf2.rackcdn.com/lemmacmd)
+Download: [Latest](https://github.com/mailgun/lemma/releases)
 
 **Usage**
 
