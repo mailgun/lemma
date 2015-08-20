@@ -17,6 +17,6 @@ This PR fixed a security critical issue: all keys and nonces are to 0! This allo
 
 Changed the key generation algorithm to obtain random data from /dev/urandom instead of /dev/zero.
 
-Related Commit/PR
+**Related Commit/PR**
 
 N/A
