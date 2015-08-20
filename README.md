@@ -16,4 +16,3 @@ Mailgun Cryptographic Tools.
 ```
 Warning!  Still being actively developed and not ready for production use!
 ```
-
