@@ -12,7 +12,7 @@ import (
 	"os"
 	"strings"
 
-	"code.google.com/p/go.crypto/nacl/secretbox"
+	"golang.org/x/crypto/nacl/secretbox"
 	"github.com/mailgun/lemma/random"
 	"github.com/mailgun/metrics"
 )
