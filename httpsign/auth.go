@@ -149,18 +149,9 @@ func (s *Service) SignRequest(r *http.Request) error {
 // message with the passed in key not the one initialized with.
 func (s *Service) SignRequestWithKey(r *http.Request, secretKey []byte) error {
 	// extract request body bytes
-	var bodyBytes []byte
-	var err error
-	if r.Body == nil {
-		// if we have no body, like a GET request, set it to ""
-		bodyBytes = []byte("")
-	} else {
-		// if we have a body, read it in
-		bodyBytes, err = ioutil.ReadAll(r.Body)
-		if err != nil {
-			return err
-		}
-		r.Body = ioutil.NopCloser(bytes.NewReader(bodyBytes))
+	bodyBytes, err := readBody(r)
+	if err != nil {
+		return err
 	}
 
 	// extract any headers if requested
@@ -188,6 +179,9 @@ func (s *Service) SignRequestWithKey(r *http.Request, secretKey []byte) error {
 	r.Header.Set(s.config.TimestampHeaderName, timestamp)
 	r.Header.Set(s.config.SignatureHeaderName, signature)
 	r.Header.Set(s.config.SignatureVersionHeaderName, "2")
+
+	// set the body bytes we read in to nil to hint to the gc to pick it up
+	bodyBytes = nil
 
 	return nil
 }
@@ -227,11 +221,10 @@ func (s *Service) AuthenticateRequestWithKey(r *http.Request, secretKey []byte) 
 	}
 
 	// extract request body bytes
-	bodyBytes, err := ioutil.ReadAll(r.Body)
+	bodyBytes, err := readBody(r)
 	if err != nil {
 		return err
 	}
-	r.Body = ioutil.NopCloser(bytes.NewReader(bodyBytes))
 
 	// extract any headers if requested
 	headerValues, err := extractHeaderValues(r, s.config.HeadersToSign)
@@ -257,6 +250,9 @@ func (s *Service) AuthenticateRequestWithKey(r *http.Request, secretKey []byte) 
 	if inCache {
 		return fmt.Errorf("nonce already in cache: %v", nonce)
 	}
+
+	// set the body bytes we read in to nil to hint to the gc to pick it up
+	bodyBytes = nil
 
 	return nil
 }
@@ -336,6 +332,47 @@ func checkMAC(secretKey []byte, signVerbAndUri bool, httpVerb string, httpResour
 	}
 
 	return true, nil
+}
+
+// readBody will read in the request body, return a byte slice, and also restore it
+// within the *http.Request so it can be read later. Tries to be smart and initialize
+// a buffer based off content-length.
+//
+// See for more details:
+// https://github.com/golang/go/blob/release-branch.go1.5/src/io/ioutil/ioutil.go#L16-L43
+func readBody(r *http.Request) (b []byte, err error) {
+	// if we have no body, like a GET request, set it to ""
+	if r.Body == nil {
+		return []byte(""), nil
+	}
+
+	// try and be smart and pre-allocate buffer
+	var n int64 = bytes.MinRead
+	if r.ContentLength > int64(n) {
+		n = r.ContentLength
+	}
+	buf := bytes.NewBuffer(make([]byte, 0, n))
+
+	// If the buffer overflows, we will get bytes.ErrTooLarge.
+	// Return that as an error. Any other panic remains.
+	defer func() {
+		e := recover()
+		if e == nil {
+			return
+		}
+		if panicErr, ok := e.(error); ok && panicErr == bytes.ErrTooLarge {
+			err = panicErr
+		} else {
+			panic(e)
+		}
+	}()
+	_, err = buf.ReadFrom(r.Body)
+
+	// restore the body back to the request
+	b = buf.Bytes()
+	r.Body = ioutil.NopCloser(bytes.NewReader(b))
+
+	return b, err
 }
 
 func extractHeaderValues(r *http.Request, headerNames []string) ([]string, error) {
