@@ -13,6 +13,7 @@ import (
 	"github.com/mailgun/timetools"
 )
 
+var testKey = []byte("042DAD12E0BE4625AC0B2C3F7172DBA8")
 var _ = fmt.Printf // for testing
 
 func TestSignRequest(t *testing.T) {
@@ -43,13 +44,13 @@ func TestSignRequest(t *testing.T) {
 		// setup
 		s, err := NewWithProviders(
 			&Config{
-				Keypath:            "test.key",
+				KeyBytes:           testKey,
 				HeadersToSign:      headerNames,
 				SignVerbAndURI:     tt.inSignVerbAndUri,
 				NonceCacheCapacity: CacheCapacity,
 				NonceCacheTimeout:  CacheTimeout,
 			},
-			&timetools.FreezedTime{time.Unix(1330837567, 0)},
+			&timetools.FreezedTime{CurrentTime: time.Unix(1330837567, 0)},
 			&random.FakeRNG{},
 		)
 		if err != nil {
@@ -99,13 +100,13 @@ func TestAuthenticateRequest(t *testing.T) {
 	// setup
 	s, err := NewWithProviders(
 		&Config{
-			Keypath:            "test.key",
+			KeyBytes:           testKey,
 			HeadersToSign:      []string{},
 			SignVerbAndURI:     false,
 			NonceCacheCapacity: CacheCapacity,
 			NonceCacheTimeout:  CacheTimeout,
 		},
-		&timetools.FreezedTime{time.Unix(1330837567, 0)},
+		&timetools.FreezedTime{CurrentTime: time.Unix(1330837567, 0)},
 		&random.FakeRNG{},
 	)
 	if err != nil {
@@ -151,13 +152,13 @@ func TestAuthenticateRequestWithHeaders(t *testing.T) {
 	// setup
 	s, err := NewWithProviders(
 		&Config{
-			Keypath:            "test.key",
+			KeyBytes:           testKey,
 			HeadersToSign:      []string{"X-Mailgun-Custom-Header"},
 			SignVerbAndURI:     false,
 			NonceCacheCapacity: CacheCapacity,
 			NonceCacheTimeout:  CacheTimeout,
 		},
-		&timetools.FreezedTime{time.Unix(1330837567, 0)},
+		&timetools.FreezedTime{CurrentTime: time.Unix(1330837567, 0)},
 		&random.FakeRNG{},
 	)
 	if err != nil {
@@ -204,13 +205,13 @@ func TestAuthenticateRequestWithKey(t *testing.T) {
 	// setup
 	s, err := NewWithProviders(
 		&Config{
-			Keypath:            "test.key",
+			KeyBytes:           testKey,
 			HeadersToSign:      []string{},
 			SignVerbAndURI:     false,
 			NonceCacheCapacity: CacheCapacity,
 			NonceCacheTimeout:  CacheTimeout,
 		},
-		&timetools.FreezedTime{time.Unix(1330837567, 0)},
+		&timetools.FreezedTime{CurrentTime: time.Unix(1330837567, 0)},
 		&random.FakeRNG{},
 	)
 	if err != nil {
@@ -256,13 +257,13 @@ func TestAuthenticateRequestWithVerbAndUri(t *testing.T) {
 	// setup
 	s, err := NewWithProviders(
 		&Config{
-			Keypath:            "test.key",
+			KeyBytes:           testKey,
 			HeadersToSign:      []string{},
 			SignVerbAndURI:     true,
 			NonceCacheCapacity: CacheCapacity,
 			NonceCacheTimeout:  CacheTimeout,
 		},
-		&timetools.FreezedTime{time.Unix(1330837567, 0)},
+		&timetools.FreezedTime{CurrentTime: time.Unix(1330837567, 0)},
 		&random.FakeRNG{},
 	)
 	if err != nil {
@@ -308,13 +309,13 @@ func TestAuthenticateRequestForged(t *testing.T) {
 	// setup
 	s, err := NewWithProviders(
 		&Config{
-			Keypath:            "test.key",
+			KeyBytes:           testKey,
 			HeadersToSign:      []string{},
 			SignVerbAndURI:     false,
 			NonceCacheCapacity: CacheCapacity,
 			NonceCacheTimeout:  CacheTimeout,
 		},
-		&timetools.FreezedTime{time.Unix(1330837567, 0)},
+		&timetools.FreezedTime{CurrentTime: time.Unix(1330837567, 0)},
 		&random.FakeRNG{},
 	)
 	if err != nil {
@@ -328,7 +329,7 @@ func TestAuthenticateRequestForged(t *testing.T) {
 
 		// check
 		if err == nil {
-			t.Errorf("AuthenticateRequest failed to authenticate a correctly signed request. It returned this error:", err)
+			t.Error("AuthenticateRequest failed to authenticate a correctly signed request. It returned this error:", err)
 		}
 
 		fmt.Fprintln(w, "Hello, client")
@@ -359,13 +360,13 @@ func TestAuthenticateRequestMissingHeaders(t *testing.T) {
 	// setup
 	s, err := NewWithProviders(
 		&Config{
-			Keypath:            "test.key",
+			KeyBytes:           testKey,
 			HeadersToSign:      []string{},
 			SignVerbAndURI:     false,
 			NonceCacheCapacity: CacheCapacity,
 			NonceCacheTimeout:  CacheTimeout,
 		},
-		&timetools.FreezedTime{time.Unix(1330837567, 0)},
+		&timetools.FreezedTime{CurrentTime: time.Unix(1330837567, 0)},
 		&random.FakeRNG{},
 	)
 	if err != nil {
@@ -379,7 +380,7 @@ func TestAuthenticateRequestMissingHeaders(t *testing.T) {
 
 		// check
 		if err == nil {
-			t.Errorf("AuthenticateRequest failed to authenticate a correctly signed request. It returned this error:", err)
+			t.Error("AuthenticateRequest failed to authenticate a correctly signed request. It returned this error:", err)
 		}
 
 		fmt.Fprintln(w, "Hello, client")
@@ -409,13 +410,13 @@ func TestCheckTimestamp(t *testing.T) {
 	// setup
 	s, err := NewWithProviders(
 		&Config{
-			Keypath:            "test.key",
+			KeyBytes:           testKey,
 			HeadersToSign:      []string{},
 			SignVerbAndURI:     false,
 			NonceCacheCapacity: 100,
 			NonceCacheTimeout:  30,
 		},
-		&timetools.FreezedTime{time.Unix(1330837567, 0)},
+		&timetools.FreezedTime{CurrentTime: time.Unix(1330837567, 0)},
 		&random.FakeRNG{},
 	)
 	if err != nil {

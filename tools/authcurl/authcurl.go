@@ -24,7 +24,7 @@ func main() {
 	checkErr(err)
 
 	svc, err := httpsign.New(&httpsign.Config{
-		Keypath:        flag.Arg(0),
+		KeyPath:        flag.Arg(0),
 		SignVerbAndURI: true,
 	})
 	checkErr(err)

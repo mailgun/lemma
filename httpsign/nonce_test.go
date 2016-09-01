@@ -15,7 +15,7 @@ func TestInCache(t *testing.T) {
 	nc, err := NewNonceCache(
 		100,
 		1,
-		&timetools.FreezedTime{time.Date(2012, 3, 4, 5, 6, 7, 0, time.UTC)},
+		&timetools.FreezedTime{CurrentTime: time.Date(2012, 3, 4, 5, 6, 7, 0, time.UTC)},
 	)
 	if err != nil {
 		t.Error("Got unexpected error from NewNonceCache:", err)
@@ -40,11 +40,9 @@ func TestInCache(t *testing.T) {
 	}
 
 	// age off first value, then it should be valid
-	ftime0 := nc.timeProvider.(*timetools.FreezedTime)
-	ftime1 := nc.cache.TimeProvider.(*timetools.FreezedTime)
+	ftime := nc.timeProvider.(*timetools.FreezedTime)
 	time4 := time.Date(2012, 3, 4, 5, 6, 10, 0, time.UTC)
-	ftime0.CurrentTime = time4
-	ftime1.CurrentTime = time4
+	ftime.CurrentTime = time4
 
 	inCache = nc.InCache("0")
 	if inCache {
