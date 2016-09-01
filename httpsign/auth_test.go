@@ -50,7 +50,7 @@ func TestSignRequest(t *testing.T) {
 				NonceCacheCapacity: CacheCapacity,
 				NonceCacheTimeout:  CacheTimeout,
 			},
-			&timetools.FreezedTime{time.Unix(1330837567, 0)},
+			&timetools.FreezedTime{CurrentTime: time.Unix(1330837567, 0)},
 			&random.FakeRNG{},
 		)
 		if err != nil {
@@ -106,7 +106,7 @@ func TestAuthenticateRequest(t *testing.T) {
 			NonceCacheCapacity: CacheCapacity,
 			NonceCacheTimeout:  CacheTimeout,
 		},
-		&timetools.FreezedTime{time.Unix(1330837567, 0)},
+		&timetools.FreezedTime{CurrentTime: time.Unix(1330837567, 0)},
 		&random.FakeRNG{},
 	)
 	if err != nil {
@@ -158,7 +158,7 @@ func TestAuthenticateRequestWithHeaders(t *testing.T) {
 			NonceCacheCapacity: CacheCapacity,
 			NonceCacheTimeout:  CacheTimeout,
 		},
-		&timetools.FreezedTime{time.Unix(1330837567, 0)},
+		&timetools.FreezedTime{CurrentTime: time.Unix(1330837567, 0)},
 		&random.FakeRNG{},
 	)
 	if err != nil {
@@ -211,7 +211,7 @@ func TestAuthenticateRequestWithKey(t *testing.T) {
 			NonceCacheCapacity: CacheCapacity,
 			NonceCacheTimeout:  CacheTimeout,
 		},
-		&timetools.FreezedTime{time.Unix(1330837567, 0)},
+		&timetools.FreezedTime{CurrentTime: time.Unix(1330837567, 0)},
 		&random.FakeRNG{},
 	)
 	if err != nil {
@@ -263,7 +263,7 @@ func TestAuthenticateRequestWithVerbAndUri(t *testing.T) {
 			NonceCacheCapacity: CacheCapacity,
 			NonceCacheTimeout:  CacheTimeout,
 		},
-		&timetools.FreezedTime{time.Unix(1330837567, 0)},
+		&timetools.FreezedTime{CurrentTime: time.Unix(1330837567, 0)},
 		&random.FakeRNG{},
 	)
 	if err != nil {
@@ -315,7 +315,7 @@ func TestAuthenticateRequestForged(t *testing.T) {
 			NonceCacheCapacity: CacheCapacity,
 			NonceCacheTimeout:  CacheTimeout,
 		},
-		&timetools.FreezedTime{time.Unix(1330837567, 0)},
+		&timetools.FreezedTime{CurrentTime: time.Unix(1330837567, 0)},
 		&random.FakeRNG{},
 	)
 	if err != nil {
@@ -329,7 +329,7 @@ func TestAuthenticateRequestForged(t *testing.T) {
 
 		// check
 		if err == nil {
-			t.Errorf("AuthenticateRequest failed to authenticate a correctly signed request. It returned this error:", err)
+			t.Error("AuthenticateRequest failed to authenticate a correctly signed request. It returned this error:", err)
 		}
 
 		fmt.Fprintln(w, "Hello, client")
@@ -366,7 +366,7 @@ func TestAuthenticateRequestMissingHeaders(t *testing.T) {
 			NonceCacheCapacity: CacheCapacity,
 			NonceCacheTimeout:  CacheTimeout,
 		},
-		&timetools.FreezedTime{time.Unix(1330837567, 0)},
+		&timetools.FreezedTime{CurrentTime: time.Unix(1330837567, 0)},
 		&random.FakeRNG{},
 	)
 	if err != nil {
@@ -380,7 +380,7 @@ func TestAuthenticateRequestMissingHeaders(t *testing.T) {
 
 		// check
 		if err == nil {
-			t.Errorf("AuthenticateRequest failed to authenticate a correctly signed request. It returned this error:", err)
+			t.Error("AuthenticateRequest failed to authenticate a correctly signed request. It returned this error:", err)
 		}
 
 		fmt.Fprintln(w, "Hello, client")
@@ -416,7 +416,7 @@ func TestCheckTimestamp(t *testing.T) {
 			NonceCacheCapacity: 100,
 			NonceCacheTimeout:  30,
 		},
-		&timetools.FreezedTime{time.Unix(1330837567, 0)},
+		&timetools.FreezedTime{CurrentTime: time.Unix(1330837567, 0)},
 		&random.FakeRNG{},
 	)
 	if err != nil {

@@ -15,7 +15,7 @@ func TestInCache(t *testing.T) {
 	nc, err := NewNonceCache(
 		100,
 		1,
-		&timetools.FreezedTime{time.Date(2012, 3, 4, 5, 6, 7, 0, time.UTC)},
+		&timetools.FreezedTime{CurrentTime: time.Date(2012, 3, 4, 5, 6, 7, 0, time.UTC)},
 	)
 	if err != nil {
 		t.Error("Got unexpected error from NewNonceCache:", err)
