@@ -13,6 +13,7 @@ import (
 	"github.com/mailgun/timetools"
 )
 
+var testKey = []byte("042DAD12E0BE4625AC0B2C3F7172DBA8")
 var _ = fmt.Printf // for testing
 
 func TestSignRequest(t *testing.T) {
@@ -43,7 +44,7 @@ func TestSignRequest(t *testing.T) {
 		// setup
 		s, err := NewWithProviders(
 			&Config{
-				Keypath:            "test.key",
+				KeyBytes:           testKey,
 				HeadersToSign:      headerNames,
 				SignVerbAndURI:     tt.inSignVerbAndUri,
 				NonceCacheCapacity: CacheCapacity,
@@ -99,7 +100,7 @@ func TestAuthenticateRequest(t *testing.T) {
 	// setup
 	s, err := NewWithProviders(
 		&Config{
-			Keypath:            "test.key",
+			KeyBytes:           testKey,
 			HeadersToSign:      []string{},
 			SignVerbAndURI:     false,
 			NonceCacheCapacity: CacheCapacity,
@@ -151,7 +152,7 @@ func TestAuthenticateRequestWithHeaders(t *testing.T) {
 	// setup
 	s, err := NewWithProviders(
 		&Config{
-			Keypath:            "test.key",
+			KeyBytes:           testKey,
 			HeadersToSign:      []string{"X-Mailgun-Custom-Header"},
 			SignVerbAndURI:     false,
 			NonceCacheCapacity: CacheCapacity,
@@ -204,7 +205,7 @@ func TestAuthenticateRequestWithKey(t *testing.T) {
 	// setup
 	s, err := NewWithProviders(
 		&Config{
-			Keypath:            "test.key",
+			KeyBytes:           testKey,
 			HeadersToSign:      []string{},
 			SignVerbAndURI:     false,
 			NonceCacheCapacity: CacheCapacity,
@@ -256,7 +257,7 @@ func TestAuthenticateRequestWithVerbAndUri(t *testing.T) {
 	// setup
 	s, err := NewWithProviders(
 		&Config{
-			Keypath:            "test.key",
+			KeyBytes:           testKey,
 			HeadersToSign:      []string{},
 			SignVerbAndURI:     true,
 			NonceCacheCapacity: CacheCapacity,
@@ -308,7 +309,7 @@ func TestAuthenticateRequestForged(t *testing.T) {
 	// setup
 	s, err := NewWithProviders(
 		&Config{
-			Keypath:            "test.key",
+			KeyBytes:           testKey,
 			HeadersToSign:      []string{},
 			SignVerbAndURI:     false,
 			NonceCacheCapacity: CacheCapacity,
@@ -359,7 +360,7 @@ func TestAuthenticateRequestMissingHeaders(t *testing.T) {
 	// setup
 	s, err := NewWithProviders(
 		&Config{
-			Keypath:            "test.key",
+			KeyBytes:           testKey,
 			HeadersToSign:      []string{},
 			SignVerbAndURI:     false,
 			NonceCacheCapacity: CacheCapacity,
@@ -409,7 +410,7 @@ func TestCheckTimestamp(t *testing.T) {
 	// setup
 	s, err := NewWithProviders(
 		&Config{
-			Keypath:            "test.key",
+			KeyBytes:           testKey,
 			HeadersToSign:      []string{},
 			SignVerbAndURI:     false,
 			NonceCacheCapacity: 100,

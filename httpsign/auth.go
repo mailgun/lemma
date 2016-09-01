@@ -9,6 +9,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -27,7 +28,14 @@ import (
 // want to set NonceCacheTimeout to 60 and NonceCacheCapacity to
 // 10000 * cacheTimeout = 600000.
 type Config struct {
-	Keypath        string   // path to signing key
+	// KeyPath is a path to a file that contains the key to sign requests. If
+	// it is an empty string then the key should be provided in `KeyBytes`.
+	KeyPath string
+
+	// KeyBytes is a key that is used by lemma to sign requests. Ignored if
+	// `KeyPath` is not an empty string.
+	KeyBytes []byte
+
 	HeadersToSign  []string // list of headers to sign
 	SignVerbAndURI bool     // include the http verb and uri in request
 
@@ -117,8 +125,19 @@ func NewWithProviders(config *Config, timeProvider timetools.TimeProvider,
 		}
 	}
 
-	// read key from disk, if no key is read that's okay it might be passed in
-	keyBytes, err := readKeyFromDisk(config.Keypath)
+	// Read in key from KeyPath or if not given, try getting them from KeyBytes.
+	var keyBytes []byte
+	var err error
+	if config.KeyPath != "" {
+		if keyBytes, err = readKeyFromDisk(config.KeyPath); err != nil {
+			return nil, err
+		}
+	} else {
+		if config.KeyBytes == nil {
+			return nil, errors.New("no key bytes provided")
+		}
+		keyBytes = config.KeyBytes
+	}
 
 	// setup nonce cache
 	ncache, err := NewNonceCache(config.NonceCacheCapacity, config.NonceCacheTimeout, timeProvider)
