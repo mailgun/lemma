@@ -8,10 +8,10 @@ import (
 	"io/ioutil"
 	"os"
 
-	"golang.org/x/crypto/pbkdf2"
-
 	"github.com/mailgun/lemma/random"
 	"github.com/mailgun/lemma/secret"
+	"golang.org/x/crypto/pbkdf2"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 type EncodedCiphertext struct {
@@ -159,13 +159,16 @@ func generateKey(keypath string, salt []byte, keyiter int) (key *[secret.SecretK
 		return key, false, nil
 	}
 
-	// otherwise read in a passphrase from disk and use that, remember to reset your terminal afterwards
-	var passphrase string
+	// otherwise read in a passphrase from disk and use that, remember to reset
+	// your terminal afterwards
 	fmt.Printf("Passphrase: ")
-	fmt.Scanln(&passphrase)
+	passphrase, err := terminal.ReadPassword(0)
+	if err != nil {
+		return nil, false, err
+	}
 
 	// derive key and return it
-	keySlice := pbkdf2.Key([]byte(passphrase), salt, keyiter, 32, sha256.New)
+	keySlice := pbkdf2.Key(passphrase, salt, keyiter, 32, sha256.New)
 	keyBytes, err := secret.KeySliceToArray(keySlice)
 	if err != nil {
 		return nil, true, err
