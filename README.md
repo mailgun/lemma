@@ -1,4 +1,4 @@
-**This repo is deprecated, Please see http://github.com/holster**
+**This repo is deprecated, Please see http://github.com/mailgun/holster**
 
 
 lemma
