@@ -1,6 +1,8 @@
+**This repo is deprecated, Please see http://github.com/holster**
+
+
 lemma
 =====
-
 Mailgun Cryptographic Tools.
 
 **Features**
