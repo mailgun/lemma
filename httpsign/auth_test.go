@@ -9,14 +9,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mailgun/holster/v3/clock"
 	"github.com/mailgun/lemma/random"
-	"github.com/mailgun/timetools"
 )
 
 var testKey = []byte("042DAD12E0BE4625AC0B2C3F7172DBA8")
 var _ = fmt.Printf // for testing
 
 func TestSignRequest(t *testing.T) {
+	clock.Freeze(clock.Unix(1330837567, 0))
+	defer clock.Unfreeze()
+
 	var signtests = []struct {
 		inHeadersToSign     map[string]string
 		inSignVerbAndUri    bool
@@ -50,7 +53,6 @@ func TestSignRequest(t *testing.T) {
 				NonceCacheCapacity: CacheCapacity,
 				NonceCacheTimeout:  CacheTimeout,
 			},
-			&timetools.FreezedTime{CurrentTime: time.Unix(1330837567, 0)},
 			&random.FakeRNG{},
 		)
 		if err != nil {
@@ -97,7 +99,9 @@ func TestSignRequest(t *testing.T) {
 }
 
 func TestAuthenticateRequest(t *testing.T) {
-	// setup
+	clock.Freeze(clock.Unix(1330837567, 0))
+	defer clock.Unfreeze()
+
 	s, err := NewWithProviders(
 		&Config{
 			KeyBytes:           testKey,
@@ -106,7 +110,6 @@ func TestAuthenticateRequest(t *testing.T) {
 			NonceCacheCapacity: CacheCapacity,
 			NonceCacheTimeout:  CacheTimeout,
 		},
-		&timetools.FreezedTime{CurrentTime: time.Unix(1330837567, 0)},
 		&random.FakeRNG{},
 	)
 	if err != nil {
@@ -149,7 +152,9 @@ func TestAuthenticateRequest(t *testing.T) {
 }
 
 func TestAuthenticateRequestWithHeaders(t *testing.T) {
-	// setup
+	clock.Freeze(clock.Unix(1330837567, 0))
+	defer clock.Unfreeze()
+
 	s, err := NewWithProviders(
 		&Config{
 			KeyBytes:           testKey,
@@ -158,7 +163,6 @@ func TestAuthenticateRequestWithHeaders(t *testing.T) {
 			NonceCacheCapacity: CacheCapacity,
 			NonceCacheTimeout:  CacheTimeout,
 		},
-		&timetools.FreezedTime{CurrentTime: time.Unix(1330837567, 0)},
 		&random.FakeRNG{},
 	)
 	if err != nil {
@@ -202,7 +206,9 @@ func TestAuthenticateRequestWithHeaders(t *testing.T) {
 }
 
 func TestAuthenticateRequestWithKey(t *testing.T) {
-	// setup
+	clock.Freeze(clock.Unix(1330837567, 0))
+	defer clock.Unfreeze()
+
 	s, err := NewWithProviders(
 		&Config{
 			KeyBytes:           testKey,
@@ -211,7 +217,6 @@ func TestAuthenticateRequestWithKey(t *testing.T) {
 			NonceCacheCapacity: CacheCapacity,
 			NonceCacheTimeout:  CacheTimeout,
 		},
-		&timetools.FreezedTime{CurrentTime: time.Unix(1330837567, 0)},
 		&random.FakeRNG{},
 	)
 	if err != nil {
@@ -254,7 +259,9 @@ func TestAuthenticateRequestWithKey(t *testing.T) {
 }
 
 func TestAuthenticateRequestWithVerbAndUri(t *testing.T) {
-	// setup
+	clock.Freeze(clock.Unix(1330837567, 0))
+	defer clock.Unfreeze()
+
 	s, err := NewWithProviders(
 		&Config{
 			KeyBytes:           testKey,
@@ -263,7 +270,6 @@ func TestAuthenticateRequestWithVerbAndUri(t *testing.T) {
 			NonceCacheCapacity: CacheCapacity,
 			NonceCacheTimeout:  CacheTimeout,
 		},
-		&timetools.FreezedTime{CurrentTime: time.Unix(1330837567, 0)},
 		&random.FakeRNG{},
 	)
 	if err != nil {
@@ -306,7 +312,9 @@ func TestAuthenticateRequestWithVerbAndUri(t *testing.T) {
 }
 
 func TestAuthenticateRequestForged(t *testing.T) {
-	// setup
+	clock.Freeze(clock.Unix(1330837567, 0))
+	defer clock.Unfreeze()
+
 	s, err := NewWithProviders(
 		&Config{
 			KeyBytes:           testKey,
@@ -315,7 +323,6 @@ func TestAuthenticateRequestForged(t *testing.T) {
 			NonceCacheCapacity: CacheCapacity,
 			NonceCacheTimeout:  CacheTimeout,
 		},
-		&timetools.FreezedTime{CurrentTime: time.Unix(1330837567, 0)},
 		&random.FakeRNG{},
 	)
 	if err != nil {
@@ -357,7 +364,9 @@ func TestAuthenticateRequestForged(t *testing.T) {
 }
 
 func TestAuthenticateRequestMissingHeaders(t *testing.T) {
-	// setup
+	clock.Freeze(clock.Unix(1330837567, 0))
+	defer clock.Unfreeze()
+
 	s, err := NewWithProviders(
 		&Config{
 			KeyBytes:           testKey,
@@ -366,7 +375,6 @@ func TestAuthenticateRequestMissingHeaders(t *testing.T) {
 			NonceCacheCapacity: CacheCapacity,
 			NonceCacheTimeout:  CacheTimeout,
 		},
-		&timetools.FreezedTime{CurrentTime: time.Unix(1330837567, 0)},
 		&random.FakeRNG{},
 	)
 	if err != nil {
@@ -407,7 +415,9 @@ func TestAuthenticateRequestMissingHeaders(t *testing.T) {
 }
 
 func TestCheckTimestamp(t *testing.T) {
-	// setup
+	clock.Freeze(clock.Unix(1330837567, 0))
+	defer clock.Unfreeze()
+
 	s, err := NewWithProviders(
 		&Config{
 			KeyBytes:           testKey,
@@ -416,7 +426,6 @@ func TestCheckTimestamp(t *testing.T) {
 			NonceCacheCapacity: 100,
 			NonceCacheTimeout:  30,
 		},
-		&timetools.FreezedTime{CurrentTime: time.Unix(1330837567, 0)},
 		&random.FakeRNG{},
 	)
 	if err != nil {

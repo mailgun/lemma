@@ -1,21 +1,19 @@
 package httpsign
 
 import (
-	"fmt"
 	"testing"
-	"time"
 
-	"github.com/mailgun/timetools"
+	"github.com/mailgun/holster/v3/clock"
 )
 
-var _ = fmt.Printf // for testing
-
 func TestInCache(t *testing.T) {
+	clock.Freeze(clock.Now())
+	defer clock.Unfreeze()
+
 	// setup
 	nc, err := NewNonceCache(
 		100,
 		1,
-		&timetools.FreezedTime{CurrentTime: time.Date(2012, 3, 4, 5, 6, 7, 0, time.UTC)},
 	)
 	if err != nil {
 		t.Error("Got unexpected error from NewNonceCache:", err)
@@ -34,16 +32,14 @@ func TestInCache(t *testing.T) {
 	}
 
 	// check some other value
+	clock.Advance(999 * clock.Millisecond)
 	inCache = nc.InCache("1")
 	if inCache {
 		t.Error("Check should be valid, but failed.", err)
 	}
 
 	// age off first value, then it should be valid
-	ftime := nc.timeProvider.(*timetools.FreezedTime)
-	time4 := time.Date(2012, 3, 4, 5, 6, 10, 0, time.UTC)
-	ftime.CurrentTime = time4
-
+	clock.Advance(1 * clock.Millisecond)
 	inCache = nc.InCache("0")
 	if inCache {
 		t.Error("Check should be valid, but failed.")

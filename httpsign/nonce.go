@@ -3,28 +3,21 @@ package httpsign
 import (
 	"sync"
 
-	"github.com/mailgun/timetools"
-	"github.com/mailgun/ttlmap"
+	"github.com/mailgun/holster/v3/collections"
 )
 
 type NonceCache struct {
 	sync.Mutex
-	cache        *ttlmap.TtlMap
-	cacheTTL     int
-	timeProvider timetools.TimeProvider
+
+	cache    *collections.TTLMap
+	cacheTTL int
 }
 
 // Return a new NonceCache. Allows you to control cache capacity, ttl, as well as the TimeProvider.
-func NewNonceCache(capacity int, cacheTTL int, timeProvider timetools.TimeProvider) (*NonceCache, error) {
-	c, err := ttlmap.NewMapWithProvider(capacity, timeProvider)
-	if err != nil {
-		return nil, err
-	}
-
+func NewNonceCache(capacity int, cacheTTL int) (*NonceCache, error) {
 	return &NonceCache{
-		cache:        c,
-		cacheTTL:     cacheTTL,
-		timeProvider: timeProvider,
+		cache:    collections.NewTTLMap(capacity),
+		cacheTTL: cacheTTL,
 	}, nil
 }
 

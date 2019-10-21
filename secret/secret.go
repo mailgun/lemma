@@ -14,7 +14,6 @@ import (
 	"strings"
 
 	"github.com/mailgun/lemma/random"
-	"github.com/mailgun/metrics"
 	"golang.org/x/crypto/nacl/secretbox"
 )
 
@@ -72,15 +71,13 @@ func (s *SealedBytes) NonceHex() string {
 
 // A Service can be used to seal/open (encrypt/decrypt and authenticate) messages.
 type Service struct {
-	secretKey     *[SecretKeyLength]byte
-	metricsClient metrics.Client
+	secretKey *[SecretKeyLength]byte
 }
 
 // New returns a new Service. Config can not be nil.
 func New(config *Config) (SecretService, error) {
 	var err error
 	var keyBytes *[SecretKeyLength]byte
-	var metricsClient metrics.Client
 
 	// Read in key from KeyPath or if not given, try getting them from KeyBytes.
 	if config.KeyPath != "" {
@@ -107,21 +104,10 @@ func New(config *Config) (SecretService, error) {
 		if config.StatsdPrefix != "" {
 			prefix += "." + config.StatsdPrefix
 		}
-
-		// build metrics client
-		hostport := fmt.Sprintf("%v:%v", config.StatsdHost, config.StatsdPort)
-		metricsClient, err = metrics.NewWithOptions(hostport, prefix, metrics.Options{UseBuffering: true})
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		// if you don't want to emit stats, use the nop client
-		metricsClient = metrics.NewNop()
 	}
 
 	return &Service{
-		secretKey:     keyBytes,
-		metricsClient: metricsClient,
+		secretKey: keyBytes,
 	}, nil
 }
 
@@ -178,16 +164,6 @@ func (s *Service) Seal(value []byte) (SealedData, error) {
 
 // Open authenticates the ciphertext and if valid, decrypts and returns plaintext.
 func (s *Service) Open(e SealedData) (byt []byte, err error) {
-	// once function is complete, check if we are returning err or not.
-	// if we are, return emit a failure metric, if not a success metric.
-	defer func() {
-		if err == nil {
-			s.metricsClient.Inc("success", 1, 1)
-		} else {
-			s.metricsClient.Inc("failure", 1, 1)
-		}
-	}()
-
 	// convert nonce to an array
 	nonce, err := nonceSliceToArray(e.NonceBytes())
 	if err != nil {

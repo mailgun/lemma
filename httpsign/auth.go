@@ -17,9 +17,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mailgun/holster/v3/clock"
 	"github.com/mailgun/lemma/random"
-	"github.com/mailgun/metrics"
-	"github.com/mailgun/timetools"
 )
 
 // Modify NonceCacheCapacity and NonceCacheTimeout if your service needs to
@@ -58,9 +57,7 @@ type Service struct {
 	config         *Config
 	nonceCache     *NonceCache
 	randomProvider random.RandomProvider
-	timeProvider   timetools.TimeProvider
 	secretKey      []byte
-	metricsClient  metrics.Client
 }
 
 // Return a new Service. Config can not be nil. If you need control over
@@ -68,14 +65,12 @@ type Service struct {
 func New(config *Config) (*Service, error) {
 	return NewWithProviders(
 		config,
-		&timetools.RealTime{},
 		&random.CSPRNG{},
 	)
 }
 
 // Returns a new Service. Provides control over time and random providers.
-func NewWithProviders(config *Config, timeProvider timetools.TimeProvider,
-	randomProvider random.RandomProvider) (*Service, error) {
+func NewWithProviders(config *Config, randomProvider random.RandomProvider) (*Service, error) {
 
 	// config is required!
 	if config == nil {
@@ -103,7 +98,6 @@ func NewWithProviders(config *Config, timeProvider timetools.TimeProvider,
 	}
 
 	// setup metrics service
-	metricsClient := metrics.NewNop()
 	if config.EmitStats {
 		// get hostname of box
 		hostname, err := os.Hostname()
@@ -115,13 +109,6 @@ func NewWithProviders(config *Config, timeProvider timetools.TimeProvider,
 		prefix := "lemma." + strings.Replace(hostname, ".", "_", -1)
 		if config.StatsdPrefix != "" {
 			prefix += "." + config.StatsdPrefix
-		}
-
-		// build metrics client
-		hostport := fmt.Sprintf("%v:%v", config.StatsdHost, config.StatsdPort)
-		metricsClient, err = metrics.NewWithOptions(hostport, prefix, metrics.Options{UseBuffering: true})
-		if err != nil {
-			return nil, err
 		}
 	}
 
@@ -140,7 +127,7 @@ func NewWithProviders(config *Config, timeProvider timetools.TimeProvider,
 	}
 
 	// setup nonce cache
-	ncache, err := NewNonceCache(config.NonceCacheCapacity, config.NonceCacheTimeout, timeProvider)
+	ncache, err := NewNonceCache(config.NonceCacheCapacity, config.NonceCacheTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -150,9 +137,7 @@ func NewWithProviders(config *Config, timeProvider timetools.TimeProvider,
 		config:         config,
 		nonceCache:     ncache,
 		secretKey:      keyBytes,
-		timeProvider:   timeProvider,
 		randomProvider: randomProvider,
-		metricsClient:  metricsClient,
 	}, nil
 }
 
@@ -186,7 +171,7 @@ func (s *Service) SignRequestWithKey(r *http.Request, secretKey []byte) error {
 	}
 
 	// get current timestamp
-	timestamp := strconv.FormatInt(s.timeProvider.UtcNow().Unix(), 10)
+	timestamp := strconv.FormatInt(clock.Now().Unix(), 10)
 
 	// compute the hmac and base16 encode it
 	computedMAC := computeMAC(secretKey, s.config.SignVerbAndURI, r.Method, r.URL.RequestURI(),
@@ -216,15 +201,6 @@ func (s *Service) AuthenticateRequest(r *http.Request) error {
 // Authenticates HTTP request to ensure it was sent by an authorized sender.
 // Checks message signature with the passed in key, not the one initialized with.
 func (s *Service) AuthenticateRequestWithKey(r *http.Request, secretKey []byte) (err error) {
-	// Emit a success or failure metric on return.
-	defer func() {
-		if err == nil {
-			s.metricsClient.Inc("success", 1, 1)
-		} else {
-			s.metricsClient.Inc("failure", 1, 1)
-		}
-	}()
-
 	// extract parameters
 	signature := r.Header.Get(s.config.SignatureHeaderName)
 	if signature == "" {
@@ -283,7 +259,7 @@ func (s *Service) checkTimestamp(timestampHeader string) (bool, error) {
 		return false, fmt.Errorf("unable to parse %v: %v", s.config.TimestampHeaderName, timestampHeader)
 	}
 
-	now := s.timeProvider.UtcNow().Unix()
+	now := clock.Now().Unix()
 
 	// if timestamp is from the future, it's invalid
 	if timestamp >= now+MaxSkewSec {
